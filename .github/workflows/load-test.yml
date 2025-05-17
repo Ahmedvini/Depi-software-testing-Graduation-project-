@@ -58,7 +58,7 @@ jobs:
       if: always()
       run: |
         echo "Analyzing load test results..."
-        python -c "
+        python - <<EOF
 import pandas as pd
 import sys
 
@@ -73,8 +73,7 @@ failure_ratio = df['Failure Count'].sum() / df['Request Count'].sum() if df['Req
 # Define thresholds
 MAX_AVG_RESPONSE_TIME = 2000  # 2 seconds
 MAX_P95_RESPONSE_TIME = 5000  # 5 seconds
-MAX_FAILURE_RATIO = 0.05      # 5%ailure
-
+MAX_FAILURE_RATIO = 0.05      # 5% failure rate
 
 # Print metrics
 print(f'Average Response Time: {avg_response_time:.2f}ms')
@@ -96,7 +95,7 @@ if failure_ratio > MAX_FAILURE_RATIO:
 if failed:
     sys.exit(1)
 print('✅ All metrics within acceptable thresholds')
-        "
+EOF
     
     - name: Notify on failure
       if: failure()
