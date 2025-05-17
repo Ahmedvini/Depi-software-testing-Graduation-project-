@@ -69,7 +69,8 @@ failure_ratio = df['Failure Count'].sum() / df['Request Count'].sum() if df['Req
 # Define thresholds
 MAX_AVG_RESPONSE_TIME = 2000  # 2 seconds
 MAX_P95_RESPONSE_TIME = 5000  # 5 seconds
-MAX_FAILURE_RATIO = 0.05      # 5%
+MAX_FAILURE_RATIO = 0.05      # 5%ailure
+
 
 # Print metrics
 print(f'Average Response Time: {avg_response_time:.2f}ms')
