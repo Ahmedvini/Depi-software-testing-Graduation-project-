@@ -58,44 +58,7 @@ jobs:
       if: always()
       run: |
         echo "Analyzing load test results..."
-        python - <<EOF
-import pandas as pd
-import sys
-
-# Read the stats CSV file
-df = pd.read_csv('load_test_results_stats.csv')
-
-# Calculate key metrics
-avg_response_time = df['Average Response Time'].mean()
-p95_response_time = df['95%'].max()
-failure_ratio = df['Failure Count'].sum() / df['Request Count'].sum() if df['Request Count'].sum() > 0 else 0
-
-# Define thresholds
-MAX_AVG_RESPONSE_TIME = 2000  # 2 seconds
-MAX_P95_RESPONSE_TIME = 5000  # 5 seconds
-MAX_FAILURE_RATIO = 0.05      # 5% failure rate
-
-# Print metrics
-print(f'Average Response Time: {avg_response_time:.2f}ms')
-print(f'95th Percentile Response Time: {p95_response_time:.2f}ms')
-print(f'Failure Ratio: {failure_ratio:.2%}')
-
-# Check against thresholds
-failed = False
-if avg_response_time > MAX_AVG_RESPONSE_TIME:
-    print(f'❌ Average response time {avg_response_time:.2f}ms exceeds threshold of {MAX_AVG_RESPONSE_TIME}ms')
-    failed = True
-if p95_response_time > MAX_P95_RESPONSE_TIME:
-    print(f'❌ P95 response time {p95_response_time:.2f}ms exceeds threshold of {MAX_P95_RESPONSE_TIME}ms')
-    failed = True
-if failure_ratio > MAX_FAILURE_RATIO:
-    print(f'❌ Failure ratio {failure_ratio:.2%} exceeds threshold of {MAX_FAILURE_RATIO:.2%}')
-    failed = True
-
-if failed:
-    sys.exit(1)
-print('✅ All metrics within acceptable thresholds')
-EOF
+        python -c 'import pandas as pd; import sys; df = pd.read_csv("load_test_results_stats.csv"); avg_response_time = df["Average Response Time"].mean(); p95_response_time = df["95%"].max(); failure_ratio = df["Failure Count"].sum() / df["Request Count"].sum() if df["Request Count"].sum() > 0 else 0; MAX_AVG_RESPONSE_TIME = 2000; MAX_P95_RESPONSE_TIME = 5000; MAX_FAILURE_RATIO = 0.05; print(f"Average Response Time: {avg_response_time:.2f}ms"); print(f"95th Percentile Response Time: {p95_response_time:.2f}ms"); print(f"Failure Ratio: {failure_ratio:.2%}"); failed = False; [print(f"❌ Average response time {avg_response_time:.2f}ms exceeds threshold of {MAX_AVG_RESPONSE_TIME}ms") or (failed := True) if avg_response_time > MAX_AVG_RESPONSE_TIME else None, print(f"❌ P95 response time {p95_response_time:.2f}ms exceeds threshold of {MAX_P95_RESPONSE_TIME}ms") or (failed := True) if p95_response_time > MAX_P95_RESPONSE_TIME else None, print(f"❌ Failure ratio {failure_ratio:.2%} exceeds threshold of {MAX_FAILURE_RATIO:.2%}") or (failed := True) if failure_ratio > MAX_FAILURE_RATIO else None]; sys.exit(1) if failed else print("✅ All metrics within acceptable thresholds")'
     
     - name: Notify on failure
       if: failure()
