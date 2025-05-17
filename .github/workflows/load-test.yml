@@ -1,0 +1,106 @@
+name: Load Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  load_test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run Locust Load Test
+      run: |
+        locust -f locustfile.py --headless -u 100 -r 5 -t 5m \
+        --host https://restful-booker.herokuapp.com \
+        --csv=load_test_results \
+        --html=load_test_report.html
+      
+    - name: Check for test failures
+      run: |
+        if [ -f load_test_results_failures.csv ] && [ "$(tail -n +2 load_test_results_failures.csv)" ]; then
+          echo "Load test detected failures"
+          exit 1
+        fi
+    
+    - name: Upload test results
+      if: always()  # Run even if the load test fails
+      uses: actions/upload-artifact@v2
+      with:
+        name: load-test-results
+        path: |
+          load_test_report.html
+          load_test_results*.csv
+        retention-days: 30
+    
+    - name: Analyze Results
+      if: always()
+      run: |
+        echo "Analyzing load test results..."
+        python -c "
+import pandas as pd
+import sys
+
+# Read the stats CSV file
+df = pd.read_csv('load_test_results_stats.csv')
+
+# Calculate key metrics
+avg_response_time = df['Average Response Time'].mean()
+p95_response_time = df['95%'].max()
+failure_ratio = df['Failure Count'].sum() / df['Request Count'].sum() if df['Request Count'].sum() > 0 else 0
+
+# Define thresholds
+MAX_AVG_RESPONSE_TIME = 2000  # 2 seconds
+MAX_P95_RESPONSE_TIME = 5000  # 5 seconds
+MAX_FAILURE_RATIO = 0.05      # 5%
+
+# Print metrics
+print(f'Average Response Time: {avg_response_time:.2f}ms')
+print(f'95th Percentile Response Time: {p95_response_time:.2f}ms')
+print(f'Failure Ratio: {failure_ratio:.2%}')
+
+# Check against thresholds
+failed = False
+if avg_response_time > MAX_AVG_RESPONSE_TIME:
+    print(f'❌ Average response time {avg_response_time:.2f}ms exceeds threshold of {MAX_AVG_RESPONSE_TIME}ms')
+    failed = True
+if p95_response_time > MAX_P95_RESPONSE_TIME:
+    print(f'❌ P95 response time {p95_response_time:.2f}ms exceeds threshold of {MAX_P95_RESPONSE_TIME}ms')
+    failed = True
+if failure_ratio > MAX_FAILURE_RATIO:
+    print(f'❌ Failure ratio {failure_ratio:.2%} exceeds threshold of {MAX_FAILURE_RATIO:.2%}')
+    failed = True
+
+if failed:
+    sys.exit(1)
+print('✅ All metrics within acceptable thresholds')
+        "
+    
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.name,
+            title: '🚨 Load Test Failure',
+            body: `Load test failed in run ${context.runId}. [View run](${context.runUrl})`
+          }) 
