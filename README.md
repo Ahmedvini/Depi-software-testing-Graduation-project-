@@ -1,6 +1,6 @@
 # 🎓 DEPI Graduation Project - Performance Testing Framework
 
-## Software Testing Track (2023-2024)
+## Software Testing Track 
 
 ### 👥 Team Members
 - Ahmed ElSheikh
